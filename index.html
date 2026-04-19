@@ -996,20 +996,7 @@
             // Geocoder 초기화
             geocoder = new kakao.maps.services.Geocoder();
             
-            const markerPosition = new kakao.maps.LatLng(lat, lng);
-            new kakao.maps.Marker({
-                position: markerPosition,
-                map: map
-            });
-            
-            const content = '<div style="background: #FF6B35; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">📍 현재 위치</div>';
-            const customOverlay = new kakao.maps.CustomOverlay({
-                position: markerPosition,
-                content: content,
-                yAnchor: 2.5
-            });
-            customOverlay.setMap(map);
-            
+         
             currentPosition = { lat, lng };
             
             testShops = generateTestShops(lat, lng);
