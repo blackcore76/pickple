@@ -1,124 +1,52 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>픽플 - 통합 검색 지도</title>
-  <style>
-    body{margin:0;font-family:Arial,sans-serif;overflow:hidden}
-    #map{width:100vw;height:100vh}
-    .search-box{position:absolute;top:16px;left:16px;right:16px;z-index:10;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
-    .search-box input{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:15px}
-    .results{position:absolute;top:88px;left:16px;right:16px;max-height:38vh;overflow:auto;background:#fff;border-radius:16px;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none}
-    .result-item{padding:12px;border-bottom:1px solid #eee;cursor:pointer}
-    .result-item:hover{background:#f8f8f8}
-    .tag{font-size:12px;color:#ff6b35;font-weight:bold}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🍖 픽플 - 검색 통합 버전</title>
+<link rel="manifest" href="/pickple/manifest.webmanifest">
+<style>
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:'Pretendard',sans-serif;overflow:hidden} #map{width:100vw;height:100vh}
+.app-header{position:absolute;top:20px;left:20px;z-index:10;background:rgba(255,255,255,.95);padding:12px 20px;border-radius:40px;font-weight:700}
+.search-wrap{position:absolute;top:76px;left:20px;right:20px;z-index:11}
+.search-input{width:100%;padding:14px 16px;border:none;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,.12);font-size:15px}
+.search-results{margin-top:8px;background:#fff;border-radius:14px;max-height:220px;overflow:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.result-item{padding:12px 14px;border-bottom:1px solid #eee;cursor:pointer}.result-item:last-child{border-bottom:none}
+.result-label{font-size:12px;color:#FF6B35;font-weight:bold}.result-desc{font-size:13px;color:#666;margin-top:4px}
+.location-btn{position:absolute;bottom:30px;right:20px;z-index:10;width:50px;height:50px;border:none;border-radius:25px;background:#fff}
+.info-panel{position:absolute;bottom:0;left:0;right:0;z-index:20;background:#fff;border-radius:24px 24px 0 0;padding:24px 20px;transform:translateY(100%);transition:.3s}.info-panel.show{transform:translateY(0)}
+</style>
 </head>
 <body>
-  <div class="search-box">
-    <input id="searchInput" placeholder="상점명, 메뉴, 키워드 검색" />
-  </div>
-  <div id="results" class="results"></div>
-  <div id="map"></div>
-
-  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=c3d4ae950dc11417e5a5063b404fcfdb&libraries=services&libraries=services"></script>
-  <script>
-    let map;
-    let markers=[];
-    const places = new kakao.maps.services.Places();
-
-    const userPicks = [
-      {name:'착한정육점', keyword:['삼겹살','가성비'], review:'목살이 신선해요', lat:36.3504, lng:127.3845},
-      {name:'한우마을', keyword:['한우','친절'], review:'사장님 설명이 좋아요', lat:36.3510, lng:127.3839}
-    ];
-
-    function initMap(){
-      map = new kakao.maps.Map(document.getElementById('map'), {
-        center:new kakao.maps.LatLng(36.3504,127.3845),
-        level:4
-      });
-    }
-
-    function clearMarkers(){
-      markers.forEach(m=>m.setMap(null));
-      markers=[];
-    }
-
-    function searchAll(keyword){
-      if(!keyword.trim()) return;
-      places.keywordSearch(keyword, function(data,status){
-        const kakaoResults = status===kakao.maps.services.Status.OK ? data.map(item=>( {
-          type:'kakao',
-          name:item.place_name,
-          address:item.address_name,
-          lat:parseFloat(item.y),
-          lng:parseFloat(item.x)
-        })) : [];
-
-        const localResults = userPicks.filter(p=>
-          p.name.includes(keyword) ||
-          p.keyword.some(k=>k.includes(keyword)) ||
-          p.review.includes(keyword)
-        ).map(p=>({...p,type:'user'}));
-
-        const merged = mergeResults(kakaoResults, localResults);
-        renderResults(merged);
-      });
-    }
-
-    function mergeResults(kakaoResults, userResults){
-      const merged=[...kakaoResults];
-      userResults.forEach(user=>{
-        const found = merged.find(item=>item.name===user.name);
-        if(found){
-          found.userReview = user.review;
-          found.userTag = true;
-        }else{
-          merged.push(user);
-        }
-      });
-      return merged;
-    }
-
-    function renderResults(items){
-      const box=document.getElementById('results');
-      box.innerHTML='';
-      box.style.display = items.length ? 'block':'none';
-      clearMarkers();
-
-      items.forEach(item=>{
-        const el=document.createElement('div');
-        el.className='result-item';
-        el.innerHTML=`<div>${item.name}</div>
-          <div class="tag">${item.userTag || item.type==='user' ? '⭐ 사용자 픽' : '📍 카카오 장소'}</div>
-          <div style="font-size:13px;color:#666">${item.userReview || item.address || ''}</div>`;
-
-        el.onclick=()=>moveTo(item);
-        box.appendChild(el);
-        addMarker(item);
-      });
-    }
-
-    function addMarker(item){
-      const marker = new kakao.maps.Marker({
-        map,
-        position:new kakao.maps.LatLng(item.lat,item.lng)
-      });
-      markers.push(marker);
-    }
-
-    function moveTo(item){
-      const pos = new kakao.maps.LatLng(item.lat,item.lng);
-      map.panTo(pos);
-      map.setLevel(3);
-    }
-
-    document.getElementById('searchInput').addEventListener('input', e=>{
-      searchAll(e.target.value);
-    });
-
-    initMap();
-  </script>
+<div class="app-header">🍖 <span style="color:#FF6B35">픽플</span></div>
+<div class="search-wrap">
+<input id="searchInput" class="search-input" placeholder="상점명, 메뉴, 키워드 검색">
+<div id="searchResults" class="search-results"></div>
+</div>
+<div id="map"></div>
+<button class="location-btn" id="locationBtn">🎯</button>
+<div class="info-panel" id="infoPanel">
+  <div id="shopName" style="font-size:20px;font-weight:700">상점을 선택해주세요</div>
+  <div id="shopCategory" style="margin-top:8px;color:#666"></div>
+  <div id="feedbackText" style="margin-top:12px"></div>
+</div>
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=c3d4ae950dc11417e5a5063b404fcfdb&libraries=services&libraries=services"></script>
+<script>
+let map,currentPosition,markers=[]; const places=new kakao.maps.services.Places();
+const testShops=[
+{name:'맛있는 정육점',category:'🥩 정육점',lat:37.5665,lng:126.9780,feedback:'삼겹살 질 좋아요',keywords:['삼겹살','정육']},
+{name:'신선마트',category:'🛒 마트',lat:37.5651,lng:126.9755,feedback:'채소 신선함',keywords:['채소','마트']}
+];
+function initMap(lat,lng){map=new kakao.maps.Map(document.getElementById('map'),{center:new kakao.maps.LatLng(lat,lng),level:3});renderShopMarkers();}
+function renderShopMarkers(){markers.forEach(m=>m.setMap(null)); markers=[]; testShops.forEach(shop=>addMarker(shop,'user'));}
+function addMarker(item,type){const marker=new kakao.maps.Marker({map,position:new kakao.maps.LatLng(item.lat,item.lng)}); kakao.maps.event.addListener(marker,'click',()=>showInfo(item,type)); markers.push(marker);}
+function showInfo(item,type){document.getElementById('shopName').textContent=item.name; document.getElementById('shopCategory').textContent=item.category||'📍 카카오 장소'; document.getElementById('feedbackText').textContent=item.feedback||item.address||''; document.getElementById('infoPanel').classList.add('show');}
+function searchAll(keyword){ if(!keyword.trim()){document.getElementById('searchResults').style.display='none';return;} places.keywordSearch(keyword,(data,status)=>{ const kakaoResults=status===kakao.maps.services.Status.OK?data.map(v=>({name:v.place_name,address:v.address_name,lat:+v.y,lng:+v.x})):[]; const local=testShops.filter(s=>s.name.includes(keyword)||s.feedback.includes(keyword)||s.keywords.some(k=>k.includes(keyword))); renderResults(mergeResults(kakaoResults,local)); }); }
+function mergeResults(kakaoList,userList){const merged=[...kakaoList]; userList.forEach(u=>{const found=merged.find(m=>m.name===u.name); if(found){found.feedback=u.feedback;found.category=u.category;found.isUser=true;} else {u.isUser=true; merged.push(u);} }); return merged;}
+function renderResults(items){const box=document.getElementById('searchResults'); box.innerHTML=''; box.style.display=items.length?'block':'none'; items.forEach(item=>{const div=document.createElement('div'); div.className='result-item'; div.innerHTML=`<div>${item.name}</div><div class="result-label">${item.isUser?'⭐ 사용자 픽':'📍 카카오 검색'}</div><div class="result-desc">${item.feedback||item.address||''}</div>`; div.onclick=()=>{map.panTo(new kakao.maps.LatLng(item.lat,item.lng)); showInfo(item); box.style.display='none';}; box.appendChild(div);});}
+document.getElementById('searchInput').addEventListener('input',e=>searchAll(e.target.value));
+document.getElementById('locationBtn').addEventListener('click',()=>{if(currentPosition) map.panTo(new kakao.maps.LatLng(currentPosition.lat,currentPosition.lng));});
+if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{currentPosition={lat:pos.coords.latitude,lng:pos.coords.longitude}; initMap(currentPosition.lat,currentPosition.lng);},()=>initMap(37.5665,126.9780));} else initMap(37.5665,126.9780);
+</script>
 </body>
 </html>
