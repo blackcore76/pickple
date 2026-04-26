@@ -1,1116 +1,124 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🔖 픽플 - 동네 사람이 직접 고른</title>
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-            overflow: hidden;
-        }
-        
-        #map {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        /* 앱 타이틀 */
-        .app-header {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 12px 20px;
-            border-radius: 40px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            font-weight: 700;
-            font-size: 20px;
-            color: #333;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .app-header span {
-            color: #FF6B35;
-        }
-        
-        /* 검색창 */
-        .search-container {
-            position: absolute;
-            top: 80px;
-            left: 20px;
-            right: 20px;
-            z-index: 10;
-            max-width: 400px;
-        }
-        
-        .search-bar {
-            background: white;
-            border-radius: 30px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-        }
-        
-        .search-icon {
-            font-size: 16px;
-            opacity: 0.6;
-        }
-        
-        .search-bar input {
-            flex: 1;
-            border: none;
-            outline: none;
-            font-size: 16px;
-            padding: 8px 0;
-            background: transparent;
-        }
-        
-        .search-bar input::placeholder {
-            color: #999;
-        }
-        
-        .search-clear {
-            background: none;
-            border: none;
-            font-size: 18px;
-            color: #999;
-            cursor: pointer;
-            padding: 4px 8px;
-        }
-        
-        .search-results {
-            background: white;
-            border-radius: 16px;
-            margin-top: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .search-result-item {
-            padding: 14px 16px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .search-result-item:last-child {
-            border-bottom: none;
-        }
-        
-        .search-result-item:hover {
-            background: #f8f9fa;
-        }
-        
-        .search-result-name {
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #333;
-        }
-        
-        .search-result-tags {
-            font-size: 13px;
-            color: #666;
-        }
-        
-        .search-result-empty {
-            padding: 20px;
-            text-align: center;
-            color: #999;
-        }
-        
-        /* 우측 하단 버튼 그룹 */
-        .bottom-buttons {
-            position: absolute;
-            bottom: 30px;
-            right: 20px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .location-btn, .pick-mode-btn {
-            width: 50px;
-            height: 50px;
-            background: white;
-            border-radius: 25px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border: none;
-            font-size: 24px;
-            transition: all 0.2s;
-        }
-        
-        .pick-mode-btn {
-            background: #FF6B35;
-            color: white;
-        }
-        
-        .pick-mode-btn.active {
-            background: #333;
-        }
-        
-        .location-btn:hover, .pick-mode-btn:hover {
-            transform: scale(1.05);
-        }
-        
-        .location-btn:active, .pick-mode-btn:active {
-            transform: scale(0.95);
-        }
-        
-        /* Pick 모드 중앙 아이콘 */
-        .pick-center-icon {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 15;
-            font-size: 48px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-            pointer-events: none;
-            display: none;
-        }
-        
-        .pick-center-icon.show {
-            display: block;
-        }
-        
-        /* Pick 모드 하단 컨트롤 패널 */
-        .pick-control-panel {
-            position: absolute;
-            bottom: 30px;
-            left: 20px;
-            right: 20px;
-            z-index: 15;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            padding: 20px;
-            display: none;
-        }
-        
-        .pick-control-panel.show {
-            display: block;
-        }
-        
-        .pick-location-info {
-            margin-bottom: 16px;
-        }
-        
-        .pick-address {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 4px;
-        }
-        
-        .pick-coords {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .pick-actions {
-            display: flex;
-            gap: 12px;
-        }
-        
-        .pick-cancel-btn, .pick-confirm-btn {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-        
-        .pick-cancel-btn {
-            background: #f0f0f0;
-            color: #666;
-        }
-        
-        .pick-confirm-btn {
-            background: #FF6B35;
-            color: white;
-        }
-        
-        /* 모달 */
-        .modal-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: flex-end;
-        }
-        
-        .modal-overlay.show {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 24px 24px 0 0;
-            padding: 24px 20px;
-            width: 100%;
-            max-height: 80vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-        
-        .modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 20px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-label {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-        }
-        
-        .form-input, .form-select, .form-textarea {
-            width: 100%;
-            padding: 14px 16px;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            font-size: 16px;
-            outline: none;
-            transition: border 0.2s;
-        }
-        
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-            border-color: #FF6B35;
-        }
-        
-        .form-textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-        
-        .modal-cancel, .modal-submit {
-            flex: 1;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-        
-        .modal-cancel {
-            background: #f0f0f0;
-            color: #666;
-        }
-        
-        .modal-submit {
-            background: #FF6B35;
-            color: white;
-        }
-        
-        /* 하단 정보 패널 */
-        .info-panel {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 20;
-            background: white;
-            border-radius: 24px 24px 0 0;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-            padding: 24px 20px;
-            transform: translateY(100%);
-            transition: transform 0.3s ease-out;
-            max-height: 50vh;
-            overflow-y: auto;
-        }
-        
-        .info-panel.show {
-            transform: translateY(0);
-        }
-        
-        .panel-handle {
-            width: 40px;
-            height: 4px;
-            background: #ddd;
-            border-radius: 2px;
-            margin: -16px auto 16px;
-        }
-        
-        .shop-name {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        
-        .shop-category {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-        
-        .feedback-preview {
-            background: #f8f9fa;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 12px;
-        }
-        
-        .feedback-text {
-            font-size: 15px;
-            line-height: 1.5;
-            color: #333;
-        }
-        
-        .feedback-meta {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 12px;
-            color: #888;
-        }
-        
-        .write-btn {
-            width: 100%;
-            background: #FF6B35;
-            color: white;
-            border: none;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .write-btn:hover {
-            background: #E55A2B;
-        }
-        
-        /* 로딩 표시 */
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 5;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 16px 24px;
-            border-radius: 40px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            font-weight: 500;
-        }
-        
-        .loading.hide {
-            display: none;
-        }
-        
-        /* 에러 메시지 */
-        .error-message {
-            position: absolute;
-            bottom: 100px;
-            left: 20px;
-            right: 20px;
-            z-index: 15;
-            background: #ff4444;
-            color: white;
-            padding: 16px;
-            border-radius: 12px;
-            text-align: center;
-            display: none;
-        }
-        
-        .error-message.show {
-            display: block;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>픽플 - 통합 검색 지도</title>
+  <style>
+    body{margin:0;font-family:Arial,sans-serif;overflow:hidden}
+    #map{width:100vw;height:100vh}
+    .search-box{position:absolute;top:16px;left:16px;right:16px;z-index:10;background:#fff;border-radius:16px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+    .search-box input{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:15px}
+    .results{position:absolute;top:88px;left:16px;right:16px;max-height:38vh;overflow:auto;background:#fff;border-radius:16px;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none}
+    .result-item{padding:12px;border-bottom:1px solid #eee;cursor:pointer}
+    .result-item:hover{background:#f8f8f8}
+    .tag{font-size:12px;color:#ff6b35;font-weight:bold}
+  </style>
 </head>
 <body>
-    <!-- 앱 헤더 -->
-    <div class="app-header">
-        🔖 <span>픽플</span> · 동네 사람이 직접 고른
-    </div>
-    
-    <!-- 검색창 -->
-    <div class="search-container" id="searchContainer">
-        <div class="search-bar">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="searchInput" placeholder="상점명, 메뉴, 키워드 검색..." autocomplete="off">
-            <button class="search-clear" id="searchClear" style="display: none;">✕</button>
-        </div>
-        <div class="search-results" id="searchResults" style="display: none;"></div>
-    </div>
-    
-    <!-- 로딩 표시 -->
-    <div class="loading" id="loading">📌 현재 위치를 찾는 중...</div>
-    
-    <!-- 에러 메시지 -->
-    <div class="error-message" id="errorMessage"></div>
-    
-    <!-- 지도 컨테이너 -->
-    <div id="map"></div>
-    
-    <!-- Pick 모드 중앙 아이콘 -->
-    <div class="pick-center-icon" id="pickCenterIcon">📍</div>
-    
-    <!-- Pick 모드 하단 컨트롤 패널 -->
-    <div class="pick-control-panel" id="pickControlPanel">
-        <div class="pick-location-info">
-            <div class="pick-address" id="pickAddress">주소를 불러오는 중...</div>
-            <div class="pick-coords" id="pickCoords"></div>
-        </div>
-        <div class="pick-actions">
-            <button class="pick-cancel-btn" id="pickCancelBtn">취소</button>
-            <button class="pick-confirm-btn" id="pickConfirmBtn">✨ 여기에 Pick!</button>
-        </div>
-    </div>
-    
-    <!-- 우측 하단 버튼 그룹 -->
-    <div class="bottom-buttons">
-        <button class="pick-mode-btn" id="pickModeBtn" title="Pick 모드">
-            📍
-        </button>
-        <button class="location-btn" id="locationBtn" title="현재 위치로 이동">
-            🎯
-        </button>
-    </div>
-    
-    <!-- 하단 상점 정보 패널 -->
-    <div class="info-panel" id="infoPanel">
-        <div class="panel-handle"></div>
-        <div id="panelContent">
-            <div class="shop-name" id="shopName">상점을 선택해주세요</div>
-            <div class="shop-category" id="shopCategory"></div>
-            <div class="feedback-preview" id="feedbackPreview" style="display: none;">
-                <div class="feedback-text" id="feedbackText"></div>
-                <div class="feedback-meta">
-                    <span id="feedbackAuthor"></span>
-                    <span id="feedbackTime"></span>
-                </div>
-            </div>
-            <button class="write-btn" id="writeBtn">✏️ 피드백 남기기</button>
-        </div>
-    </div>
-    
-    <!-- 새 상점 등록 모달 -->
-    <div class="modal-overlay" id="shopModal">
-        <div class="modal-content">
-            <div class="modal-title">✨ 새 상점 Pick!</div>
-            
-            <div class="form-group">
-                <div class="form-label">상호명</div>
-                <input type="text" class="form-input" id="shopNameInput" placeholder="예: 맛있는 정육점">
-            </div>
-            
-            <div class="form-group">
-                <div class="form-label">카테고리</div>
-                <select class="form-select" id="shopCategorySelect">
-                    <option value="🥩 정육점">🥩 정육점</option>
-                    <option value="🛒 슈퍼마켓">🛒 슈퍼마켓</option>
-                    <option value="🐟 수산">🐟 수산</option>
-                    <option value="🍜 한식">🍜 한식</option>
-                    <option value="☕ 카페">☕ 카페</option>
-                    <option value="💊 약국">💊 약국</option>
-                    <option value="🔧 카센터">🔧 카센터</option>
-                    <option value="🏬 일반상점">🏬 일반상점</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <div class="form-label">메뉴/특징 (쉼표로 구분)</div>
-                <input type="text" class="form-input" id="shopTagsInput" placeholder="예: 삼겹살, 목살, 친절, 주차편함">
-            </div>
-            
-            <div class="form-group">
-                <div class="form-label">첫 피드백 (선택)</div>
-                <textarea class="form-textarea" id="shopFeedbackInput" placeholder="오늘 방문해서 느낀 점을 남겨보세요..."></textarea>
-            </div>
-            
-            <div class="modal-actions">
-                <button class="modal-cancel" id="modalCancelBtn">취소</button>
-                <button class="modal-submit" id="modalSubmitBtn">✨ Pick 등록</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 카카오맵 SDK -->
-    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=c3d4ae950dc11417e5a5063b404fcfdb&libraries=services"></script>
-    
-    <script>
-        // ============================================
-        // 전역 변수
-        // ============================================
-        let map = null;
-        let currentPosition = null;
-        let markers = [];
-        let testShops = [];
-        let allShops = [];
-        let isPickMode = false;
-        let geocoder = null;
-        let nextShopId = 100;
-        
-        // Pick 모드 관련 변수
-        let pickCenterLat = null;
-        let pickCenterLng = null;
-        
-        // DOM 요소
-        const loadingEl = document.getElementById('loading');
-        const errorMessageEl = document.getElementById('errorMessage');
-        const infoPanel = document.getElementById('infoPanel');
-        const locationBtn = document.getElementById('locationBtn');
-        const pickModeBtn = document.getElementById('pickModeBtn');
-        const shopName = document.getElementById('shopName');
-        const shopCategory = document.getElementById('shopCategory');
-        const feedbackPreview = document.getElementById('feedbackPreview');
-        const feedbackText = document.getElementById('feedbackText');
-        const feedbackAuthor = document.getElementById('feedbackAuthor');
-        const feedbackTime = document.getElementById('feedbackTime');
-        const writeBtn = document.getElementById('writeBtn');
-        
-        // 검색 관련 DOM 요소
-        const searchContainer = document.getElementById('searchContainer');
-        const searchInput = document.getElementById('searchInput');
-        const searchClear = document.getElementById('searchClear');
-        const searchResults = document.getElementById('searchResults');
-        
-        // Pick 모드 DOM 요소
-        const pickCenterIcon = document.getElementById('pickCenterIcon');
-        const pickControlPanel = document.getElementById('pickControlPanel');
-        const pickAddress = document.getElementById('pickAddress');
-        const pickCoords = document.getElementById('pickCoords');
-        const pickCancelBtn = document.getElementById('pickCancelBtn');
-        const pickConfirmBtn = document.getElementById('pickConfirmBtn');
-        
-        // 모달 DOM 요소
-        const shopModal = document.getElementById('shopModal');
-        const shopNameInput = document.getElementById('shopNameInput');
-        const shopCategorySelect = document.getElementById('shopCategorySelect');
-        const shopTagsInput = document.getElementById('shopTagsInput');
-        const shopFeedbackInput = document.getElementById('shopFeedbackInput');
-        const modalCancelBtn = document.getElementById('modalCancelBtn');
-        const modalSubmitBtn = document.getElementById('modalSubmitBtn');
-        
-        // ============================================
-        // 유틸리티 함수
-        // ============================================
-        function showError(message) {
-            errorMessageEl.textContent = message;
-            errorMessageEl.classList.add('show');
-            setTimeout(() => {
-                errorMessageEl.classList.remove('show');
-            }, 3000);
+  <div class="search-box">
+    <input id="searchInput" placeholder="상점명, 메뉴, 키워드 검색" />
+  </div>
+  <div id="results" class="results"></div>
+  <div id="map"></div>
+
+  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=c3d4ae950dc11417e5a5063b404fcfdb&libraries=services&libraries=services"></script>
+  <script>
+    let map;
+    let markers=[];
+    const places = new kakao.maps.services.Places();
+
+    const userPicks = [
+      {name:'착한정육점', keyword:['삼겹살','가성비'], review:'목살이 신선해요', lat:36.3504, lng:127.3845},
+      {name:'한우마을', keyword:['한우','친절'], review:'사장님 설명이 좋아요', lat:36.3510, lng:127.3839}
+    ];
+
+    function initMap(){
+      map = new kakao.maps.Map(document.getElementById('map'), {
+        center:new kakao.maps.LatLng(36.3504,127.3845),
+        level:4
+      });
+    }
+
+    function clearMarkers(){
+      markers.forEach(m=>m.setMap(null));
+      markers=[];
+    }
+
+    function searchAll(keyword){
+      if(!keyword.trim()) return;
+      places.keywordSearch(keyword, function(data,status){
+        const kakaoResults = status===kakao.maps.services.Status.OK ? data.map(item=>( {
+          type:'kakao',
+          name:item.place_name,
+          address:item.address_name,
+          lat:parseFloat(item.y),
+          lng:parseFloat(item.x)
+        })) : [];
+
+        const localResults = userPicks.filter(p=>
+          p.name.includes(keyword) ||
+          p.keyword.some(k=>k.includes(keyword)) ||
+          p.review.includes(keyword)
+        ).map(p=>({...p,type:'user'}));
+
+        const merged = mergeResults(kakaoResults, localResults);
+        renderResults(merged);
+      });
+    }
+
+    function mergeResults(kakaoResults, userResults){
+      const merged=[...kakaoResults];
+      userResults.forEach(user=>{
+        const found = merged.find(item=>item.name===user.name);
+        if(found){
+          found.userReview = user.review;
+          found.userTag = true;
+        }else{
+          merged.push(user);
         }
-        
-        function showSuccess(message) {
-            // 간단한 성공 메시지 (얼럿 대신)
-            alert(message);
-        }
-        
-        // 현재 위치 기준으로 테스트 상점 생성
-        function generateTestShops(centerLat, centerLng) {
-            const offset = 0.003;
-            
-            return [
-                {
-                    id: 1,
-                    name: '대전최고칼국수',
-                    category: '🍜 한식',
-                    lat: centerLat + offset,
-                    lng: centerLng - offset * 0.5,
-                    menuTags: ['칼국수', '수제비', '삼겹살', '어린이돈까스', '주차편함'],
-                    feedback: {
-                        text: '칼국수 육수가 진짜 진하고 삼겹살도 두툼해요! 가격도 착해요 👍',
-                        author: '동네미식가',
-                        time: '2시간 전'
-                    }
-                },
-                {
-                    id: 2,
-                    name: '맛있는 정육점',
-                    category: '🥩 정육점',
-                    lat: centerLat - offset * 0.7,
-                    lng: centerLng + offset,
-                    menuTags: ['삼겹살', '목살', '갈비', '한우', '양념육'],
-                    feedback: {
-                        text: '오늘 삼겹살 29,000원인데 질이 진짜 좋아요! 사장님도 친절하시고 👍',
-                        author: '동네주민',
-                        time: '1시간 전'
-                    }
-                },
-                {
-                    id: 3,
-                    name: '신선마트',
-                    category: '🛒 슈퍼마켓',
-                    lat: centerLat + offset * 0.8,
-                    lng: centerLng + offset * 0.6,
-                    menuTags: ['과일', '채소', '음료', '라면', '생필품'],
-                    feedback: {
-                        text: '배추 한 통에 2,000원! 가격 착하고 신선해요',
-                        author: '알뜰주부',
-                        time: '3시간 전'
-                    }
-                },
-                {
-                    id: 4,
-                    name: '바다횟집',
-                    category: '🐟 수산',
-                    lat: centerLat - offset * 0.3,
-                    lng: centerLng - offset * 0.8,
-                    menuTags: ['광어', '우럭', '새우', '회', '해산물'],
-                    feedback: null
-                }
-            ];
-        }
-        
-        function enrichTestShops() {
-            return testShops.map(shop => {
-                return {
-                    ...shop,
-                    feedbacks: shop.feedback ? [shop.feedback] : []
-                };
-            });
-        }
-        
-        // ============================================
-        // 검색 기능
-        // ============================================
-        function searchShops(keyword) {
-            if (!keyword.trim()) return [];
-            const lowerKeyword = keyword.toLowerCase().trim();
-            
-            return allShops.filter(shop => {
-                if (shop.name.toLowerCase().includes(lowerKeyword)) return true;
-                if (shop.menuTags && shop.menuTags.some(tag => tag.toLowerCase().includes(lowerKeyword))) return true;
-                if (shop.feedbacks && shop.feedbacks.some(fb => fb.text.toLowerCase().includes(lowerKeyword))) return true;
-                return false;
-            });
-        }
-        
-        function displaySearchResults(results) {
-            if (results.length === 0) {
-                searchResults.innerHTML = '<div class="search-result-empty">🔍 검색 결과가 없습니다</div>';
-                searchResults.style.display = 'block';
-                return;
-            }
-            
-            searchResults.innerHTML = results.slice(0, 5).map(shop => {
-                const matchedTags = shop.menuTags ? shop.menuTags.slice(0, 3).join(', ') : '';
-                return `
-                    <div class="search-result-item" data-shop-id="${shop.id}">
-                        <div class="search-result-name">${shop.category} ${shop.name}</div>
-                        <div class="search-result-tags">${matchedTags}${shop.menuTags && shop.menuTags.length > 3 ? ' 외 ' + (shop.menuTags.length - 3) + '개' : ''}</div>
-                    </div>
-                `;
-            }).join('');
-            
-            document.querySelectorAll('.search-result-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    const shopId = parseInt(this.dataset.shopId);
-                    const shop = allShops.find(s => s.id === shopId);
-                    if (shop) {
-                        showShopInfo(shop);
-                        searchResults.style.display = 'none';
-                        searchInput.value = '';
-                        searchClear.style.display = 'none';
-                    }
-                });
-            });
-            
-            searchResults.style.display = 'block';
-        }
-        
-        function initSearch() {
-            allShops = enrichTestShops();
-            
-            searchInput.addEventListener('input', function() {
-                const keyword = this.value;
-                searchClear.style.display = keyword ? 'block' : 'none';
-                displaySearchResults(searchShops(keyword));
-            });
-            
-            searchClear.addEventListener('click', function() {
-                searchInput.value = '';
-                searchClear.style.display = 'none';
-                searchResults.style.display = 'none';
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (!searchContainer.contains(e.target)) {
-                    searchResults.style.display = 'none';
-                }
-            });
-            
-            searchInput.addEventListener('focus', function() {
-                if (this.value.trim()) {
-                    displaySearchResults(searchShops(this.value));
-                }
-            });
-        }
-        
-        // ============================================
-        // 지도 및 마커 기능
-        // ============================================
-        function createMarkerImage(category) {
-            const emojiMap = {
-                '🥩 정육점': '🥩',
-                '🛒 슈퍼마켓': '🛒',
-                '🐟 수산': '🐟',
-                '🍜 한식': '🍜',
-                '☕ 카페': '☕',
-                '💊 약국': '💊',
-                '🔧 카센터': '🔧',
-                '🏬 일반상점': '🏬'
-            };
-            const emoji = emojiMap[category] || '📍';
-            
-            return new kakao.maps.MarkerImage(
-                'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 40 40\'%3E%3Ccircle cx=\'20\' cy=\'20\' r=\'18\' fill=\'%23FF6B35\' stroke=\'white\' stroke-width=\'2\'/%3E%3Ctext x=\'20\' y=\'27\' font-size=\'16\' text-anchor=\'middle\' fill=\'white\' font-weight=\'bold\'%3E' + emoji + '%3C/text%3E%3C/svg%3E',
-                new kakao.maps.Size(40, 40),
-                { offset: new kakao.maps.Point(20, 40) }
-            );
-        }
-        
-        function addTestShopMarkers() {
-            markers.forEach(marker => marker.setMap(null));
-            markers = [];
-            
-            testShops.forEach(shop => {
-                const position = new kakao.maps.LatLng(shop.lat, shop.lng);
-                const markerImage = createMarkerImage(shop.category);
-                
-                const marker = new kakao.maps.Marker({
-                    position: position,
-                    map: map,
-                    image: markerImage
-                });
-                
-                kakao.maps.event.addListener(marker, 'click', function() {
-                    if (isPickMode) return;
-                    showShopInfo(shop);
-                });
-                
-                markers.push(marker);
-            });
-        }
-        
-        function addSingleShopMarker(shop) {
-            const position = new kakao.maps.LatLng(shop.lat, shop.lng);
-            const markerImage = createMarkerImage(shop.category);
-            
-            const marker = new kakao.maps.Marker({
-                position: position,
-                map: map,
-                image: markerImage
-            });
-            
-            kakao.maps.event.addListener(marker, 'click', function() {
-                if (isPickMode) return;
-                showShopInfo(shop);
-            });
-            
-            markers.push(marker);
-        }
-        
-        function showShopInfo(shop) {
-            shopName.textContent = shop.name;
-            shopCategory.textContent = shop.category;
-            
-            if (shop.feedback) {
-                feedbackText.textContent = shop.feedback.text;
-                feedbackAuthor.textContent = shop.feedback.author;
-                feedbackTime.textContent = shop.feedback.time;
-                feedbackPreview.style.display = 'block';
-            } else {
-                feedbackPreview.style.display = 'none';
-            }
-            
-            infoPanel.classList.add('show');
-            
-            const moveLatLon = new kakao.maps.LatLng(shop.lat, shop.lng);
-            map.panTo(moveLatLon);
-        }
-        
-        // ============================================
-        // Pick 모드 기능
-        // ============================================
-        function enterPickMode() {
-            isPickMode = true;
-            pickModeBtn.classList.add('active');
-            pickCenterIcon.classList.add('show');
-            pickControlPanel.classList.add('show');
-            infoPanel.classList.remove('show');
-            
-            // 지도 중앙 좌표 가져오기
-            updatePickCenterFromMap();
-            
-            // 지도 이동 이벤트 등록
-            kakao.maps.event.addListener(map, 'center_changed', updatePickCenterFromMap);
-        }
-        
-        function exitPickMode() {
-            isPickMode = false;
-            pickModeBtn.classList.remove('active');
-            pickCenterIcon.classList.remove('show');
-            pickControlPanel.classList.remove('show');
-            
-            // 지도 이동 이벤트 제거
-            kakao.maps.event.removeListener(map, 'center_changed', updatePickCenterFromMap);
-        }
-        
-        function updatePickCenterFromMap() {
-            const center = map.getCenter();
-            pickCenterLat = center.getLat();
-            pickCenterLng = center.getLng();
-            
-            pickCoords.textContent = `위도: ${pickCenterLat.toFixed(6)}, 경도: ${pickCenterLng.toFixed(6)}`;
-            
-            // 주소 가져오기
-            if (geocoder) {
-                geocoder.coord2Address(pickCenterLng, pickCenterLat, function(result, status) {
-                    if (status === kakao.maps.services.Status.OK) {
-                        const address = result[0].address;
-                        pickAddress.textContent = address.address_name || '주소 정보 없음';
-                    } else {
-                        pickAddress.textContent = '주소를 불러올 수 없습니다';
-                    }
-                });
-            }
-        }
-        
-        function openShopModal() {
-            // 입력값 초기화
-            shopNameInput.value = '';
-            shopTagsInput.value = '';
-            shopFeedbackInput.value = '';
-            
-            shopModal.classList.add('show');
-        }
-        
-        function closeShopModal() {
-            shopModal.classList.remove('show');
-        }
-        
-        function createNewShop() {
-            const name = shopNameInput.value.trim();
-            const category = shopCategorySelect.value;
-            const tagsString = shopTagsInput.value.trim();
-            const feedbackString = shopFeedbackInput.value.trim();
-            
-            if (!name) {
-                alert('상호명을 입력해주세요!');
-                return;
-            }
-            
-            // 메뉴 태그 파싱
-            const menuTags = tagsString ? tagsString.split(',').map(t => t.trim()).filter(t => t) : [];
-            
-            // 피드백 객체 생성
-            const feedback = feedbackString ? {
-                text: feedbackString,
-                author: '나',
-                time: '방금 전'
-            } : null;
-            
-            // 새 상점 객체
-            const newShop = {
-                id: nextShopId++,
-                name: name,
-                category: category,
-                lat: pickCenterLat,
-                lng: pickCenterLng,
-                menuTags: menuTags,
-                feedback: feedback,
-                feedbacks: feedback ? [feedback] : []
-            };
-            
-            // 데이터 추가
-            testShops.push(newShop);
-            allShops.push(newShop);
-            
-            // 마커 추가
-            addSingleShopMarker(newShop);
-            
-            // Pick 모드 종료
-            exitPickMode();
-            
-            // 모달 닫기
-            closeShopModal();
-            
-            // 성공 메시지
-            showSuccess(`✨ ${name} 상점이 등록되었습니다!`);
-            
-            // 새로 등록된 상점 정보 보여주기
-            showShopInfo(newShop);
-        }
-        
-        // ============================================
-        // 지도 초기화
-        // ============================================
-        function initMap(lat, lng) {
-            const container = document.getElementById('map');
-            const options = {
-                center: new kakao.maps.LatLng(lat, lng),
-                level: 3
-            };
-            
-            map = new kakao.maps.Map(container, options);
-            
-            // Geocoder 초기화
-            geocoder = new kakao.maps.services.Geocoder();
-            
-        //    const markerPosition = new kakao.maps.LatLng(lat, lng);
-        //    new kakao.maps.Marker({
-        //        position: markerPosition,
-        //         map: map
-        //    });
-            
-        //    const content = '<div style="background: #FF6B35; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">📍 현재 위치</div>';
-        //    const customOverlay = new kakao.maps.CustomOverlay({
-        //        position: markerPosition,
-        //        content: content,
-        //        yAnchor: 2.5
-        //    });
-        //    customOverlay.setMap(map);
-            
-            currentPosition = { lat, lng };
-            
-            testShops = generateTestShops(lat, lng);
-            addTestShopMarkers();
-            
-            loadingEl.classList.add('hide');
-            
-            initSearch();
-            
-            kakao.maps.event.addListener(map, 'click', function() {
-                if (!isPickMode) {
-                    infoPanel.classList.remove('show');
-                }
-            });
-        }
-        
-        function moveToCurrentLocation() {
-            if (currentPosition && map) {
-                const moveLatLon = new kakao.maps.LatLng(currentPosition.lat, currentPosition.lng);
-                map.panTo(moveLatLon);
-            }
-        }
-        
-        // ============================================
-        // 앱 초기화
-        // ============================================
-        function initApp() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        initMap(position.coords.latitude, position.coords.longitude);
-                    },
-                    function(error) {
-                        loadingEl.classList.add('hide');
-                        let errorMsg = '위치 정보를 가져올 수 없습니다.';
-                        if (error.code === error.PERMISSION_DENIED) {
-                            errorMsg = '위치 권한이 거부되었습니다. 설정에서 허용해주세요.';
-                        }
-                        showError(errorMsg);
-                        initMap(37.5665, 126.9780);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                loadingEl.classList.add('hide');
-                showError('이 브라우저는 위치 정보를 지원하지 않습니다.');
-                initMap(37.5665, 126.9780);
-            }
-        }
-        
-        // ============================================
-        // 이벤트 리스너
-        // ============================================
-        locationBtn.addEventListener('click', function() {
-            if (isPickMode) exitPickMode();
-            moveToCurrentLocation();
-        });
-        
-        pickModeBtn.addEventListener('click', function() {
-            if (isPickMode) {
-                exitPickMode();
-            } else {
-                infoPanel.classList.remove('show');
-                enterPickMode();
-            }
-        });
-        
-        pickCancelBtn.addEventListener('click', exitPickMode);
-        
-        pickConfirmBtn.addEventListener('click', function() {
-            if (!pickCenterLat || !pickCenterLng) {
-                alert('위치 정보를 불러오는 중입니다...');
-                return;
-            }
-            openShopModal();
-        });
-        
-        modalCancelBtn.addEventListener('click', closeShopModal);
-        
-        modalSubmitBtn.addEventListener('click', createNewShop);
-        
-        // 모달 외부 클릭 시 닫기
-        shopModal.addEventListener('click', function(e) {
-            if (e.target === shopModal) {
-                closeShopModal();
-            }
-        });
-        
-        writeBtn.addEventListener('click', function() {
-            if (shopName.textContent === '상점을 선택해주세요') {
-                alert('먼저 상점을 선택해주세요!');
-                return;
-            }
-            alert('✏️ 피드백 작성 기능은 곧 추가됩니다! (현재 선택된 상점: ' + shopName.textContent + ')');
-        });
-        
-        initApp();
-    </script>
+      });
+      return merged;
+    }
+
+    function renderResults(items){
+      const box=document.getElementById('results');
+      box.innerHTML='';
+      box.style.display = items.length ? 'block':'none';
+      clearMarkers();
+
+      items.forEach(item=>{
+        const el=document.createElement('div');
+        el.className='result-item';
+        el.innerHTML=`<div>${item.name}</div>
+          <div class="tag">${item.userTag || item.type==='user' ? '⭐ 사용자 픽' : '📍 카카오 장소'}</div>
+          <div style="font-size:13px;color:#666">${item.userReview || item.address || ''}</div>`;
+
+        el.onclick=()=>moveTo(item);
+        box.appendChild(el);
+        addMarker(item);
+      });
+    }
+
+    function addMarker(item){
+      const marker = new kakao.maps.Marker({
+        map,
+        position:new kakao.maps.LatLng(item.lat,item.lng)
+      });
+      markers.push(marker);
+    }
+
+    function moveTo(item){
+      const pos = new kakao.maps.LatLng(item.lat,item.lng);
+      map.panTo(pos);
+      map.setLevel(3);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', e=>{
+      searchAll(e.target.value);
+    });
+
+    initMap();
+  </script>
 </body>
 </html>
