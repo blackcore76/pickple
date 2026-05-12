@@ -1,0 +1,27 @@
+{
+  "name": "픽플 - 동네 사람이 직접 고른 진짜 정보",
+  "short_name": "픽플",
+  "description": "나만의 픽포인트를 지도 위에 저장하고 공유하는 로컬 리뷰 앱",
+  "start_url": "/pickple/",
+  "scope": "/pickple/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#FF6B35",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/pickple/img/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pickple/img/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "navigation", "social"]
+}
