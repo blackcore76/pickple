@@ -449,6 +449,25 @@ input, textarea { font-family: inherit; }
   margin-top: -1px;
 }
 
+/* ── others' pick markers ── */
+.pick-marker--others      { background: #4DABF7; }
+.pick-marker-tail--others { background: #4DABF7; }
+
+.pick-panel-badge-others {
+  font-size: 12px;
+  color: #4DABF7;
+  font-weight: 600;
+  padding-top: 6px;
+  flex-shrink: 0;
+}
+
+/* ── save button loading state ── */
+.btn-primary:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* ── current location dot ── */
 .current-loc-dot {
   width: 18px;
