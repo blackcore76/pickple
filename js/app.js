@@ -81,15 +81,154 @@ function showToast(type, msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
 
+/* ────────────────────────────────────────────────
+   🔧 터치/포인터 환경 감지
+   - 태블릿 데스크탑 모드: UA=데스크탑, 입력=터치
+   - 이 함수로 실제 입력 방식을 확인
+──────────────────────────────────────────────── */
+function hasTouchInput() {
+  return (
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia('(pointer: coarse)').matches
+  );
+}
+
+/* ────────────────────────────────────────────────
+   🔧 카카오맵 컨테이너 터치 처리 강제 활성화
+   카카오맵 SDK가 데스크탑 UA 감지 시 내부적으로
+   mouse 이벤트만 바인딩하는 문제를 우회:
+   map div 위에 포인터 이벤트를 직접 위임해서
+   touch → mousedown/mousemove/mouseup 시뮬레이션
+──────────────────────────────────────────────── */
+function patchMapTouchDrag(mapEl) {
+  // 이미 패치됐거나 터치 입력이 없는 환경이면 스킵
+  if (!hasTouchInput()) return;
+  if (mapEl.dataset.touchPatched) return;
+  mapEl.dataset.touchPatched = 'true';
+
+  // 카카오맵 내부 canvas/div들이 touch-action: none 을 받아야
+  // 브라우저 기본 스크롤이 지도 드래그를 방해하지 않음
+  mapEl.style.touchAction = 'none';
+
+  let isDragging = false;
+  let lastTouch  = null;
+  let tapTimer   = null;
+  let tapPos     = null;
+  const TAP_THRESHOLD_PX = 10; // 이 픽셀 이내 이동은 탭으로 간주
+  const TAP_TIMEOUT_MS   = 300;
+
+  function simulateMouse(type, touch, target) {
+    const evt = new MouseEvent(type, {
+      bubbles:    true,
+      cancelable: true,
+      view:       window,
+      clientX:    touch.clientX,
+      clientY:    touch.clientY,
+      screenX:    touch.screenX,
+      screenY:    touch.screenY,
+      button:     0,
+      buttons:    type === 'mouseup' ? 0 : 1,
+    });
+    target.dispatchEvent(evt);
+  }
+
+  mapEl.addEventListener('touchstart', e => {
+    // 멀티터치(핀치 줌)는 건드리지 않음
+    if (e.touches.length > 1) return;
+
+    const t = e.touches[0];
+    lastTouch = t;
+    isDragging = false;
+    tapPos = { x: t.clientX, y: t.clientY };
+
+    // 탭 판정 타이머
+    tapTimer = setTimeout(() => { tapTimer = null; }, TAP_TIMEOUT_MS);
+
+    const target = document.elementFromPoint(t.clientX, t.clientY) || mapEl;
+    simulateMouse('mousedown', t, target);
+  }, { passive: true });
+
+  mapEl.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) return; // 핀치 줌 제외
+    const t = e.touches[0];
+
+    if (tapPos) {
+      const dx = Math.abs(t.clientX - tapPos.x);
+      const dy = Math.abs(t.clientY - tapPos.y);
+      if (dx > TAP_THRESHOLD_PX || dy > TAP_THRESHOLD_PX) {
+        isDragging = true;
+        clearTimeout(tapTimer);
+        tapTimer = null;
+      }
+    }
+
+    lastTouch = t;
+    const target = document.elementFromPoint(t.clientX, t.clientY) || mapEl;
+    simulateMouse('mousemove', t, target);
+  }, { passive: true });
+
+  mapEl.addEventListener('touchend', e => {
+    if (!lastTouch) return;
+
+    const target = document.elementFromPoint(lastTouch.clientX, lastTouch.clientY) || mapEl;
+    simulateMouse('mouseup', lastTouch, target);
+
+    // 드래그가 없었고 타이머 내에 손을 뗐으면 → click 이벤트 발생
+    // (카카오맵 'click' 리스너가 정상 작동하도록)
+    if (!isDragging && tapTimer !== null) {
+      simulateMouse('click', lastTouch, target);
+    }
+
+    clearTimeout(tapTimer);
+    tapTimer   = null;
+    lastTouch  = null;
+    isDragging = false;
+    tapPos     = null;
+  }, { passive: true });
+
+  mapEl.addEventListener('touchcancel', () => {
+    if (lastTouch) {
+      const target = document.elementFromPoint(lastTouch.clientX, lastTouch.clientY) || mapEl;
+      simulateMouse('mouseup', lastTouch, target);
+    }
+    clearTimeout(tapTimer);
+    tapTimer   = null;
+    lastTouch  = null;
+    isDragging = false;
+    tapPos     = null;
+  }, { passive: true });
+}
+
 /* ── map ── */
 function initMap(lat, lng) {
-  map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(lat, lng),
-    level: 4,
+  const mapEl = document.getElementById('map');
+
+  map = new kakao.maps.Map(mapEl, {
+    center:    new kakao.maps.LatLng(lat, lng),
+    level:     4,
+    draggable: true,   // 명시적으로 드래그 허용
+    scrollwheel: true, // 스크롤 줌 허용
   });
+
   currentPosition = { lat, lng };
   placeCurrentLocDot(lat, lng);
   kakao.maps.event.addListener(map, 'click', onMapClick);
+
+  // 🔧 태블릿 데스크탑 모드 터치 패치 적용
+  // 카카오맵이 DOM을 완전히 구성한 뒤 실행되도록 약간 지연
+  requestAnimationFrame(() => {
+    patchMapTouchDrag(mapEl);
+
+    // 카카오맵 내부 iframe/div에도 touch-action 전파
+    mapEl.querySelectorAll('*').forEach(el => {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'canvas' || tag === 'div') {
+        el.style.touchAction = 'none';
+      }
+    });
+  });
+
   document.getElementById('loading').classList.add('hide');
 }
 
@@ -98,8 +237,8 @@ function placeCurrentLocDot(lat, lng) {
   dot.className = 'current-loc-dot';
   new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
-    content: dot,
-    zIndex: 1,
+    content:  dot,
+    zIndex:   1,
   }).setMap(map);
 }
 
@@ -110,11 +249,23 @@ function addPickMarker(pick) {
 
   const outer = document.createElement('div');
   outer.className = 'pick-marker-outer';
+
+  // 🔧 마커 자체가 터치 이벤트를 삼키지 않도록
+  //    클릭만 처리하고 드래그는 지도로 위임
+  outer.style.touchAction = 'none';
+  outer.style.userSelect  = 'none';
+
   outer.innerHTML = `
     <div class="pick-marker${isOwn ? '' : ' pick-marker--others'}">${cat.icon}</div>
     <div class="pick-marker-tail${isOwn ? '' : ' pick-marker-tail--others'}"></div>
   `;
-  outer.addEventListener('click', e => {
+
+  // 🔧 포인터 이벤트로 통합 처리 (mouse + touch + stylus)
+  let pointerMoved = false;
+  outer.addEventListener('pointerdown', () => { pointerMoved = false; });
+  outer.addEventListener('pointermove', () => { pointerMoved = true;  });
+  outer.addEventListener('pointerup', e => {
+    if (pointerMoved) return; // 드래그 중엔 클릭 무시
     e.stopPropagation();
     if (addMode) setAddMode(false);
     showPickInfo(pick.id);
@@ -122,9 +273,9 @@ function addPickMarker(pick) {
 
   const overlay = new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(pick.lat, pick.lng),
-    content: outer,
-    yAnchor: 1.15,
-    zIndex: 3,
+    content:  outer,
+    yAnchor:  1.15,
+    zIndex:   3,
   });
   overlay.setMap(map);
   pickOverlays.set(pick.id, { overlay, el: outer });
@@ -137,8 +288,8 @@ function removePickMarker(id) {
 
 /* ── firebase ops ── */
 async function signInUser() {
-  const cred     = await signInAnonymously(auth);
-  currentUserId  = cred.user.uid;
+  const cred    = await signInAnonymously(auth);
+  currentUserId = cred.user.uid;
   await migrateLocalPicks();
   listenToPicks();
 }
@@ -152,12 +303,12 @@ async function migrateLocalPicks() {
 
   const ref = collection(db, 'picks');
   await Promise.all(local.map(p => addDoc(ref, {
-    title:    p.title,
-    category: p.category,
-    comment:  p.comment || '',
-    lat:      p.lat,
-    lng:      p.lng,
-    userId:   currentUserId,
+    title:     p.title,
+    category:  p.category,
+    comment:   p.comment || '',
+    lat:       p.lat,
+    lng:       p.lng,
+    userId:    currentUserId,
     createdAt: serverTimestamp(),
   })));
 
@@ -238,10 +389,10 @@ function onMapClick(mouseEvent) {
 function openModal(prefill) {
   selectedCat = prefill?.category || 'etc';
   renderCategoryGrid();
-  document.getElementById('pickTitle').value            = prefill?.title   || '';
-  document.getElementById('pickComment').value          = prefill?.comment || '';
-  document.getElementById('charCount').textContent      = (prefill?.comment || '').length;
-  document.getElementById('modalTitle').textContent     = editingPickId ? '픽포인트 수정' : '새 픽포인트';
+  document.getElementById('pickTitle').value        = prefill?.title   || '';
+  document.getElementById('pickComment').value      = prefill?.comment || '';
+  document.getElementById('charCount').textContent  = (prefill?.comment || '').length;
+  document.getElementById('modalTitle').textContent = editingPickId ? '픽포인트 수정' : '새 픽포인트';
   document.getElementById('modalBackdrop').classList.add('show');
   setTimeout(() => document.getElementById('pickTitle').focus(), 350);
 }
